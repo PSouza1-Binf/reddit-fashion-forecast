@@ -4,3 +4,8 @@ streamlit
     plotly
     statsmodels
     scikit-learn
+    matplotlib
+tensorflow
+    keras
+    xgboost
+    prophet
