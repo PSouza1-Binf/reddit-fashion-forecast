@@ -73,14 +73,39 @@ def basic_prepare(df: pd.DataFrame) -> pd.DataFrame:
 # SENTIMENT (very simple heuristic)
 # -------------------------------------------------------------------
 POSITIVE = {
+    # General positivity
     "love": 2.0, "like": 1.0, "great": 1.5, "amazing": 2.0, "fire": 2.0,
     "clean": 1.2, "dope": 1.5, "nice": 1.0, "awesome": 2.0, "beautiful": 1.6,
-    "perfect": 2.0, "solid": 1.0, "good": 1.0, "heat": 1.8,
+    "perfect": 2.0, "solid": 1.0, "good": 1.0, "heat": 1.8, "grail": 2.0,
+    "legit": 1.2, "quality": 1.2, "cop": 1.2, "copped": 1.5, "w": 1.2, "win": 1.5,
+    # Added slang / community language
+    "clean af": 2.0, "super clean": 2.0, "gas": 1.8, "firee": 1.8, "insane": 1.5,
+    "crazy": 1.2, "vintage": 1.0, "cozy": 1.2, "slept": 1.5, "underrated": 1.3,
+    "comfortable": 1.2, "fits": 1.2, "heat": 1.8, "essential": 1.2, "banger": 1.8,
+    # Approval / satisfaction
+    "worth": 1.0, "recommend": 1.5, "satisfied": 1.5, "happy": 1.5, "love it": 2.0,
+    "amazing quality": 2.0, "best": 2.0, "beautiful": 1.6, "wow": 1.5,
+    # Trend and hype words
+    "hyped": 1.2, "trend": 1.0, "viral": 1.2, "drippy": 1.8, "sleek": 1.2,
+    "clean fit": 1.8, "solid pickup": 1.5, "good deal": 1.3, "steal": 1.2,
+    "🔥": 2.0, "💯": 1.8, "👌": 1.2
 }
 NEGATIVE = {
+    # General negativity
     "hate": -2.0, "dislike": -1.2, "trash": -2.0, "ugly": -1.5, "bad": -1.2,
-    "fake": -2.0, "mid": -1.0, "overpriced": -1.5, "awful": -2.0, "terrible": -2.0,
+    "fake": -2.0, "rep": -0.8, "reps": -0.8, "mid": -1.0, "overpriced": -1.5,
+    "cheap": -0.8, "worse": -1.0, "awful": -2.0, "terrible": -2.0, "l": -1.2, "lose": -1.2,
+    # Added slang / community language
+    "mid af": -1.5, "trash af": -2.0, "poor": -1.0, "bad quality": -1.5,
+    "uncomfortable": -1.2, "ugly af": -2.0, "hate it": -2.0, "broke": -1.2,
+    "fake qc": -1.5, "flawed": -1.0, "stiff": -0.8, "creases": -0.8,
+    # Negative sentiment around pricing / value
+    "scam": -2.0, "overhyped": -1.5, "waste": -1.5, "bad deal": -1.2,
+    "returning": -1.0, "refund": -1.0, "expensive": -0.8,
+    # Emojis / shorthand
+    "💀": -1.5, "🤮": -2.0, "👎": -1.5, "😭": -1.2, "😤": -1.2, "😡": -1.5
 }
+
 
 
 def simple_sentiment(text: str) -> float:
@@ -108,13 +133,56 @@ def add_sentiment(df: pd.DataFrame) -> pd.DataFrame:
 # BRAND & ITEM EXTRACTION (lexicon-based)
 # -------------------------------------------------------------------
 BRANDS = [
-    "nike", "adidas", "puma", "new balance", "nb", "reebok", "asics",
-    "hoka", "vans", "converse", "jordan", "yeezy", "shein", "h&m", "zara"
+    # Sneaker & streetwear core
+    "Nike", "Adidas", "Jordan", "New Balance", "Puma", "Reebok", "ASICS", "Vans",
+    "Converse", "Yeezy", "Supreme", "Palace", "BAPE", "Kith", "Stussy", "Fear of God",
+    "Essentials", "Chrome Hearts", "Aime Leon Dore", "Noah", "Off-White", "Rhude",
+    "Carhartt", "Dickies", "Levi's", "Wrangler",
+    # Luxury / designer
+    "Gucci", "Prada", "Balenciaga", "Louis Vuitton", "Chanel", "Hermes", "Dior",
+    "Burberry", "Versace", "Fendi", "Givenchy", "Alexander McQueen", "Maison Margiela",
+    "Rick Owens", "Raf Simons", "Jil Sander", "Dries Van Noten", "AMI Paris", "Loewe",
+    "Celine", "Valentino", "Moschino", "Lanvin", "Kenzo",
+    # Outdoor / techwear / performance
+    "Arc'teryx", "The North Face", "TNF", "Patagonia", "Salomon", "Columbia",
+    "Helly Hansen", "Mammut", "Moncler", "Stone Island", "CP Company", "Napapijri",
+    # Fast-fashion / accessible
+    "Uniqlo", "Zara", "H&M", "Bershka", "Pull & Bear", "COS", "Weekday",
+    # Footwear / high-end sneakers
+    "Dr. Martens", "Doc Martens", "Docs", "Timberland", "Clarks", "UGG", "Birkenstock",
+    "Common Projects", "Onitsuka Tiger", "Veja", "Saucony", "HOKA", "Crocs",
+    # Jewelry / accessories
+    "Tiffany", "Cartier", "Rolex", "Casio", "G-Shock", "Tag Heuer", "Omega",
+    "Swarovski", "Pandora", "Sun House", "Vivienne Westwood",
+    # Misc / emerging labels seen in reps & reddit culture
+    "Aritzia", "COSRX", "Muji", "Acne Studios", "Our Legacy", "Needles",
+    "Kapital", "John Elliott", "Aimé Leon Dore", "Y-3", "Reformation", "Aritzia",
+    "Represent", "1017 ALYX 9SM", "Fear of God Essentials", "Heron Preston",
+    "AMBUSH", "Daily Paper", "Arcteryx", "Maison Mihara", "Mihara Yasuhiro"
 ]
 
 ITEMS = [
-    "shoes", "sneakers", "dunks", "air force 1", "af1", "hoodie", "tee", "t-shirt",
-    "jacket", "pants", "jeans", "shorts", "bag", "slides"
+    # Footwear
+    "Dunk", "Dunks", "Jordan 1", "Jordan 3", "Jordan 4", "Jordan 11",
+    "Air Force 1", "AF1", "Air Max", "Samba", "Gazelle", "Campus", "Superstar",
+    "Stan Smith", "Forum", "550", "574", "990", "991", "992", "993", "2002R",
+    "Tabi", "Ramones", "Boots", "Loafers", "Derby", "Clogs", "Slides", "Sandals",
+    "Sneakers", "Runners", "Crocs","Shoes","Sneakers",
+    # Tops / outerwear
+    "Hoodie", "Crewneck", "Sweater", "Cardigan", "Jacket", "Denim Jacket",
+    "Bomber", "Varsity Jacket", "Puffer", "Down Jacket", "Fleece", "Parka",
+    "Shell", "Windbreaker", "Raincoat", "Vest", "Blazer", "Coat", "Trench",
+    # Bottoms
+    "Jeans", "Denim", "Trousers", "Pants", "Cargo", "Carpenter", "Chinos",
+    "Shorts", "Skirt", "Leggings", "Joggers", "Trackpants",
+    # Shirts / tees
+    "Tee", "T-shirt", "Graphic Tee", "Long Sleeve", "Polo", "Button-up",
+    "Flannel", "Henley",
+    # Accessories
+    "Cap", "Hat", "Beanie", "Scarf", "Belt", "Gloves", "Socks", "Bag", "Tote",
+    "Backpack", "Messenger", "Wallet", "Bracelet", "Ring", "Necklace", "Watch",
+    "Sunglasses", "Glasses",
+
 ]
 
 
