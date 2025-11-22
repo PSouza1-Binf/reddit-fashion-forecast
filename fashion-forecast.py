@@ -37,17 +37,8 @@ with st.sidebar:
 
 
 # ---------------- Load data ----------------
-raw_df = None
-if uploaded is not None:
-    raw_df = load_csv(uploaded)
-elif default_path:
-    try:
-        raw_df = load_csv(default_path)
-    except Exception:
-        st.info("Could not load from path; please upload the CSV using the sidebar.")
+raw_df = pd.read_csv("merged_reddit_posts.zip", compression="zip")
 
-if raw_df is None:
-    st.stop()
 
 # Run the ML pipeline from brand_model.py
 bundle = build_models_from_df(raw_df)
