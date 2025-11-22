@@ -26,8 +26,6 @@ st.caption(
 # ---------------- Sidebar: data + search UI ----------------
 with st.sidebar:
     st.header("⚙️ Data & brand search")
-    uploaded = st.file_uploader("Upload your merged_reddit_posts.csv", type=["csv"])
-    default_path = st.text_input("...or use a local path", value="merged_reddit_posts.csv")
 
     # Search box
     brand_query = st.text_input("Brand search", placeholder="e.g. nike, adidas, shein...")
