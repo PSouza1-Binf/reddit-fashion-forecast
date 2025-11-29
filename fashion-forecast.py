@@ -35,7 +35,7 @@ with st.sidebar:
 
 
 # ---------------- Load data ----------------
-raw_df = pd.read_csv("merged_reddit_posts.zip", compression="zip")
+raw_df = pd.read_csv("merged_reddit_posts_final.zip", compression="zip")
 
 
 # Run the ML pipeline from brand_model.py
