@@ -183,7 +183,7 @@ else:
     st.write("Top microtopics for this brand (latest week → next-week forecast):")
     st.dataframe(brand_watch.head(20))
 
-        .sum()
+    .sum()
     )
 
     # Brand-level predicted next-week engagement: sum predictions over microtopics
