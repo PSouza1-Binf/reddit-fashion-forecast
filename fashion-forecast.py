@@ -72,25 +72,46 @@ with st.sidebar:
         # optional: show a hint of example brands
         if st.checkbox("Show example brands", value=False):
             st.write(", ".join(all_brands[:30]))
+# ---------------- ITEM SEARCH (autocomplete style) ----------------
+
+# Build item list (GEN included, unless you want to exclude it)
+all_items = sorted(agg["item"].dropna().unique().tolist())
+
+SELECT_ITEM_MANUAL = "-- Type item manually --"
+item_select_options = [SELECT_ITEM_MANUAL] + all_items
+
+selected_item_from_list = st.selectbox("Choose item (searchable)", item_select_options, index=0)
+
+manual_item = ""
+if selected_item_from_list == SELECT_ITEM_MANUAL:
+    manual_item = st.text_input("Type item", placeholder="e.g. dunk, hoodie, tote bag...")
+
+# Add an item-search button only if you want independent item searches
+# but we keep it tied to the existing Search button
 
     # Explicit Search button to control state and reruns
     search_clicked = st.button("Search")
 
-# ---------------------------------------------------------------------
-# Keep old search state logic for UX consistency
-# ---------------------------------------------------------------------
+# ---------------- Handle search state ----------------
 if "last_brand_query" not in st.session_state:
     st.session_state["last_brand_query"] = ""
 
-# When user clicks Search, determine which input they used and save it
+if "last_item_query" not in st.session_state:
+    st.session_state["last_item_query"] = ""
+
 if search_clicked:
+    # BRAND
     if selected_from_list != SELECT_MANUAL:
-        # User picked from the selectbox
         st.session_state["last_brand_query"] = selected_from_list.strip()
-    else:
-        # Manual entry (allow blank -> ignored)
-        if manual_brand and manual_brand.strip():
-            st.session_state["last_brand_query"] = manual_brand.strip()
+    elif manual_brand.strip():
+        st.session_state["last_brand_query"] = manual_brand.strip()
+
+    # ITEM
+    if selected_item_from_list != SELECT_ITEM_MANUAL:
+        st.session_state["last_item_query"] = selected_item_from_list.strip()
+    elif manual_item.strip():
+        st.session_state["last_item_query"] = manual_item.strip()
+
 
 active_query = st.session_state["last_brand_query"].strip()
 
