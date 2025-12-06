@@ -184,7 +184,7 @@ else:
     st.dataframe(brand_watch.head(20))
 
     .sum()
-    )
+    
 
     # Brand-level predicted next-week engagement: sum predictions over microtopics
     predicted_next = brand_watch["pred_next_engagement"].sum()
