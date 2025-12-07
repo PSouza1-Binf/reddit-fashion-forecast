@@ -108,7 +108,7 @@ col3.metric("Expected change", f"{change_pct:+.1f}%" if np.isfinite(change_pct) 
 st.caption(f"Model eval — PR-AUC: {pr_auc:.3f}, MAE: {mae:.2f}")
 st.dataframe(w.head(20))
 
-# ---------------- TOP SURGING MICROTOTICS ----------------
+# ---------------- TOP SURGING MICROTOPICS ----------------
 st.subheader("🔥 Top Surging Microtopics (Latest Week)")
 
 # Rank microtopics by surge probability * weight
