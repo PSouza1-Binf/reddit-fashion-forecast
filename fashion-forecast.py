@@ -113,7 +113,9 @@ with tab_hist:
 with tab_forecast:
     st.subheader("Forecast")
     st.write("Forecasted microtopics contributing to next week's engagement:")
-    st.dataframe(w.head(20))
+    w_sorted = w.sort_values("pred_next_engagement", ascending=False)
+    st.dataframe(w_sorted.head(20))
+
 
 # ---------------------- SURGE ----------------------
 with tab_surge:
