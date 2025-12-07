@@ -63,15 +63,6 @@ if filtered.empty:
     st.warning("No data found.")
     st.stop()
 
-# HISTORICAL
-hist = filtered.groupby("week_start", as_index=False).agg(
-    posts=("posts", "sum"),
-    engagement=("engagement_sum", "sum")
-)
-
-st.subheader("📆 Historical Engagement")
-st.plotly_chart(px.line(hist, x="week_start", y="engagement"), use_container_width=True)
-
 # FORECAST ROWS
 if active_brand and active_item:
     w = watchlist[(watchlist.brand == active_brand) & (watchlist.item == active_item)].copy()
@@ -88,35 +79,67 @@ latest_week = w.week_start.iloc[0]
 latest_actual = filtered[filtered.week_start == latest_week].engagement_sum.sum()
 pred_next = w.pred_next_engagement.sum()
 
-# SURGE PROBABILITY — weighted (option B)
 w["weight"] = w.engagement_sum / (w.engagement_sum.sum() or 1)
 brand_surge_prob = float((w.surge_prob * w.weight).sum())
 
-# ALERT
-if brand_surge_prob > 0.90:
-    st.error(f"🚨 Surge Alert! Weighted surge probability = {brand_surge_prob:.2%}")
-else:
-    st.success(f"Surge probability = {brand_surge_prob:.2%}")
+# ---------------------- TABS ----------------------
+tab_overview, tab_hist, tab_forecast, tab_surge, tab_raw = st.tabs([
+    "📌 Overview",
+    "📆 Historical Trends",
+    "🔮 Forecast",
+    "🔥 Surge",
+    "📄 Explore Raw Data"
+])
 
-change_pct = (pred_next - latest_actual) / latest_actual * 100 if latest_actual > 0 else np.nan
+# ---------------------- OVERVIEW ----------------------
+with tab_overview:
+    st.subheader("Overview")
+    st.metric("Latest engagement", f"{latest_actual:.1f}")
+    st.metric("Predicted next week", f"{pred_next:.1f}")
+    change_pct = (pred_next - latest_actual) / latest_actual * 100 if latest_actual > 0 else np.nan
+    st.metric("Expected change", f"{change_pct:+.1f}%" if np.isfinite(change_pct) else "N/A")
+    st.metric("Weighted surge probability", f"{brand_surge_prob:.2%}")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Latest engagement", f"{latest_actual:.1f}")
-col2.metric("Predicted next week", f"{pred_next:.1f}")
-col3.metric("Expected change", f"{change_pct:+.1f}%" if np.isfinite(change_pct) else "N/A")
+# ---------------------- HISTORICAL ----------------------
+with tab_hist:
+    st.subheader("Historical Trends")
+    hist = filtered.groupby("week_start", as_index=False).agg(
+        posts=("posts", "sum"),
+        engagement=("engagement_sum", "sum")
+    )
+    st.plotly_chart(px.line(hist, x="week_start", y="engagement"), use_container_width=True)
+
+# ---------------------- FORECAST ----------------------
+with tab_forecast:
+    st.subheader("Forecast")
+    st.write("Forecasted microtopics contributing to next week's engagement:")
+    st.dataframe(w.head(20))
+
+# ---------------------- SURGE ----------------------
+with tab_surge:
+    st.subheader("Surge Alerts & Top Microtopics")
+
+    if brand_surge_prob > 0.90:
+        st.error(f"🚨 Surge Alert! Weighted surge probability = {brand_surge_prob:.2%}")
+    else:
+        st.success(f"Surge probability = {brand_surge_prob:.2%}")
+
+    micro_surge = (
+        w.assign(weighted_surge=w.surge_prob * w.weight)
+          .sort_values("weighted_surge", ascending=False)
+          .head(10)
+    )
+
+    st.write("Top microtopics contributing most to expected surge:")
+    st.dataframe(micro_surge[["microtopic", "surge_prob", "weight", "weighted_surge", "pred_next_engagement"]])
+
+# ---------------------- RAW DATA ----------------------
+with tab_raw:
+    st.subheader("Explore Raw Data")
+    st.write("Filtered aggregated data:")
+    st.dataframe(filtered)
+    st.write("Forecast rows:")
+    st.dataframe(w)
 
 st.caption(f"Model eval — PR-AUC: {pr_auc:.3f}, MAE: {mae:.2f}")
-st.dataframe(w.head(20))
 
-# ---------------- TOP SURGING MICROTOPICS ----------------
-st.subheader("🔥 Top Surging Microtopics (Latest Week)")
-
-# Rank microtopics by surge probability * weight
-micro_surge = (
-    w.assign(weighted_surge=w.surge_prob * w.weight)
-      .sort_values("weighted_surge", ascending=False)
-      .head(10)
-)
-
-st.write("These microtopics contribute most to the brand's predicted surge:")
-st.dataframe(micro_surge[["microtopic", "surge_prob", "weight", "weighted_surge", "pred_next_engagement"]])
