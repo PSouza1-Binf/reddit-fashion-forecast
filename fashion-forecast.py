@@ -119,7 +119,7 @@ micro_surge = (
 )
 
 st.write("These microtopics contribute most to the brand's predicted surge:")
-st.dataframe(micro_surge[["microtopic", "surge_prob", "weight", "weighted_surge", "pred_next_engagement"]])(20))
+st.dataframe(micro_surge[["microtopic", "surge_prob", "weight", "weighted_surge", "pred_next_engagement"]])
 st.caption(f"Model eval — PR-AUC: {pr_auc:.3f}, MAE: {mae:.2f}")
 st.dataframe(w.head(20))
 
