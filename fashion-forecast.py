@@ -100,12 +100,26 @@ else:
 
 change_pct = (pred_next - latest_actual) / latest_actual * 100 if latest_actual > 0 else np.nan
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3 = st.columns(3)
 col1.metric("Latest engagement", f"{latest_actual:.1f}")
 col2.metric("Predicted next week", f"{pred_next:.1f}")
 col3.metric("Expected change", f"{change_pct:+.1f}%" if np.isfinite(change_pct) else "N/A")
-col4.metric(f"Surge probability = {brand_surge_prob:.2%}")
 
+st.caption(f"Model eval — PR-AUC: {pr_auc:.3f}, MAE: {mae:.2f}")
+st.dataframe(w.head(20))
+
+# ---------------- TOP SURGING MICROTOTICS ----------------
+st.subheader("🔥 Top Surging Microtopics (Latest Week)")
+
+# Rank microtopics by surge probability * weight
+micro_surge = (
+    w.assign(weighted_surge=w.surge_prob * w.weight)
+      .sort_values("weighted_surge", ascending=False)
+      .head(10)
+)
+
+st.write("These microtopics contribute most to the brand's predicted surge:")
+st.dataframe(micro_surge[["microtopic", "surge_prob", "weight", "weighted_surge", "pred_next_engagement"]])(20))
 st.caption(f"Model eval — PR-AUC: {pr_auc:.3f}, MAE: {mae:.2f}")
 st.dataframe(w.head(20))
 
