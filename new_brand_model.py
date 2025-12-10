@@ -1,15 +1,14 @@
 # new_brand_model.py
 """
-Clean, importable version of the forecaster pipeline.
-Provides build_model_bundle(posts_path, comments_path, *, do_downloads=False)
-which returns a dict with keys:
-  - agg, watchlist, pr_auc, mae, surge_threshold, clf, reg, feat, micro, df
-Notes:
- - This file no longer contains any Colab or shell commands.
- - If spaCy model or NLTK data are missing, set do_downloads=True to attempt to download.
+Clean, importable pipeline for building the forecasting bundle.
+
+Usage:
+    from new_brand_model import build_model_bundle, save_model_bundle
+    bundle = build_model_bundle(posts_path, comments_path, do_downloads=False)
 """
 
 import re
+import zipfile
 import pickle
 from typing import Optional, Dict, Any, List
 from collections import Counter
@@ -17,61 +16,53 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-# ML & NLP
+# ML & NLP imports (import modules, but defer heavy model loading to functions)
 from nltk.sentiment import SentimentIntensityAnalyzer
 import spacy
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.metrics import average_precision_score, mean_absolute_error
 
-# Config
+# Configuration
 SURGE_TOP_PCT = 0.10
 MIN_POSTS_PER_MICROTOPIC = 4
 RANDOM_STATE = 42
 
 
-# -----------------------
-# Helpers
-# -----------------------
-import zipfile
-
-def load_csv_from_zip(path):
-    """Load the first CSV found inside a ZIP archive."""
+# -------------------------
+# Utilities
+# -------------------------
+def load_csv_from_zip(path: str) -> pd.DataFrame:
+    """Read the first CSV file inside a ZIP and return a DataFrame."""
     with zipfile.ZipFile(path, "r") as z:
-        csv_name = [f for f in z.namelist() if f.endswith(".csv")][0]
-        with z.open(csv_name) as f:
+        csvs = [name for name in z.namelist() if name.lower().endswith(".csv")]
+        if not csvs:
+            raise FileNotFoundError(f"No CSV found in ZIP: {path}")
+        with z.open(csvs[0]) as f:
             return pd.read_csv(f)
 
 
-def _ensure_nltk_vader(do_download: bool = False):
+def ensure_vader(do_download: bool = False) -> SentimentIntensityAnalyzer:
+    """Return a SentimentIntensityAnalyzer; optionally download lexicon if missing."""
     try:
-        SentimentIntensityAnalyzer()
+        return SentimentIntensityAnalyzer()
     except Exception:
         if do_download:
             import nltk
             nltk.download("vader_lexicon")
             return SentimentIntensityAnalyzer()
-        else:
-            raise RuntimeError(
-                "NLTK VADER lexicon not found. Either pre-install it (python -m nltk.downloader vader_lexicon) "
-                "or call build_model_bundle(..., do_downloads=True)."
-            )
-    return SentimentIntensityAnalyzer()
+        raise
 
 
-def _ensure_spacy_model(do_download: bool = False):
+def ensure_spacy(do_download: bool = False):
+    """Return a spaCy nlp object for NER (lightweight: disable heavy components)."""
     try:
-        nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
-        return nlp
+        return spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
     except Exception:
         if do_download:
             import subprocess, sys
             subprocess.check_call([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
-            nlp = spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
-            return nlp
-        else:
-            raise RuntimeError(
-                "spaCy model 'en_core_web_sm' not installed. Install it or call build_model_bundle(..., do_downloads=True)."
-            )
+            return spacy.load("en_core_web_sm", disable=["parser", "tagger", "lemmatizer"])
+        raise
 
 
 def norm(s: Optional[str]) -> str:
@@ -80,43 +71,42 @@ def norm(s: Optional[str]) -> str:
     return re.sub(r"\s+", " ", s.strip())
 
 
-# -----------------------
-# Brand discovery & regex builders
-# -----------------------
+# -------------------------
+# Brand discovery helpers
+# -------------------------
 def discover_brands_spacy_on_titles(titles: List[str], nlp, min_count: int = 10) -> pd.DataFrame:
     counter = Counter()
-    # Use large batch, single process (stable on many environments)
     for doc in nlp.pipe(titles, batch_size=512, n_process=1):
         for ent in doc.ents:
             if ent.label_ in {"ORG", "PRODUCT"}:
                 name = ent.text.strip()
                 if len(name) >= 2:
                     counter[name] += 1
-    cand = pd.DataFrame([{"brand": k, "count": v} for k, v in counter.items()]).sort_values("count", ascending=False)
-    return cand[cand["count"] >= min_count].reset_index(drop=True)
+    df = pd.DataFrame([{"brand": k, "count": v} for k, v in counter.items()]).sort_values("count", ascending=False)
+    return df[df["count"] >= min_count].reset_index(drop=True)
 
 
-def build_brand_item_regex_from_dataframe(df: pd.DataFrame):
-    titles = df["title"].fillna("").tolist()
-    nlp = _ensure_spacy_model(do_download=False)
-    brand_candidates = discover_brands_spacy_on_titles(titles, nlp, min_count=10)
+def build_brand_item_regex(df_posts: pd.DataFrame, nlp) -> (List[str], List[str], Optional[re.Pattern], Optional[re.Pattern]):
+    # Run NER on titles only for speed
+    titles = df_posts["title"].fillna("").tolist()
+    brand_candidates_df = discover_brands_spacy_on_titles(titles, nlp, min_count=10)
 
     blacklist = {"Today", "Monday", "Tuesday", "Friday", "Reddit", "YouTube", "Instagram", "WhatsApp", "Buy", "Need"}
-    auto_brands = [b for b in brand_candidates["brand"].tolist() if b not in blacklist]
+    auto_brands = [b for b in brand_candidates_df["brand"].tolist() if b not in blacklist]
 
     manual_additions = ["Nike", "Adidas", "Jordan", "New Balance", "Yeezy", "Stüssy", "Aimé Leon Dore"]
     BRANDS = sorted({b.strip() for b in auto_brands + manual_additions if b and b.strip()})
 
     ITEMS = [
         "Dunk", "Dunks", "Air Force 1", "AF1", "Jordan 1", "Jordan 4", "Jordan 3",
-        "Samba", "Gazelle", "Campus", "Huarache",
-        "hoodie", "hoodies", "crewneck", "t-shirt", "tee", "tees",
-        "cargo pants", "cargos", "jeans", "denim", "puffer", "parka",
-        "tracksuit", "track jacket", "track pants",
+        "Samba", "Gazelle", "Campus", "Huarache", "hoodie", "hoodies", "crewneck",
+        "t-shirt", "tee", "tees", "cargo pants", "cargos", "jeans", "denim",
+        "puffer", "parka", "tracksuit", "track jacket", "track pants",
         "bag", "tote bag", "backpack", "belt", "cap", "hat", "beanie",
     ]
 
     def _esc(s): return re.escape(s)
+
     brand_pattern = r"|".join(sorted(_esc(b) for b in BRANDS)) if BRANDS else ""
     item_pattern = r"|".join(sorted(_esc(i) for i in ITEMS)) if ITEMS else ""
 
@@ -126,36 +116,39 @@ def build_brand_item_regex_from_dataframe(df: pd.DataFrame):
     return BRANDS, ITEMS, BRAND_RE, ITEM_RE
 
 
-# -----------------------
-# Core pipeline
-# -----------------------
+# -------------------------
+# Main pipeline
+# -------------------------
 def build_model_bundle(posts_path: str,
                        comments_path: str,
                        *,
                        do_downloads: bool = False) -> Dict[str, Any]:
     """
-    Build the full pipeline from raw CSV(s) and return a bundle dict.
-    Set do_downloads=True to allow the function to download missing NLP assets (not recommended for Streamlit).
+    Build the full pipeline from raw CSV(s)/ZIP(s) and return a bundle dict.
+    Set do_downloads=True to allow the function to auto-download missing NLP assets (not recommended in production).
     """
-    # Ensure resources
-    vader = _ensure_nltk_vader(do_download=do_downloads)
-    nlp = _ensure_spacy_model(do_download=do_downloads)
+    # Prepare NLP resources (on-demand)
+    vader = ensure_vader(do_download=do_downloads)
+    nlp = ensure_spacy(do_download=do_downloads)
 
-    # Load zipped data files (located in /Data/)
-    df = load_csv_from_zip("Data/merged_reddit_posts_final.zip")
-    comments_df = load_csv_from_zip("Data/all_comments_multi2.zip")
+    # Load posts & comments (support zipped CSVs or plain CSVs)
+    def _maybe_zip_loader(p):
+        if p.lower().endswith(".zip"):
+            return load_csv_from_zip(p)
+        return pd.read_csv(p)
 
+    posts = _maybe_zip_loader(posts_path)
+    comments = _maybe_zip_loader(comments_path)
 
-    # --- clean posts ---
+    # Cleaning + merge comments
     posts["title"] = posts["title"].apply(norm)
     posts["selftext"] = posts.get("selftext", "").apply(norm)
 
-    # normalize name fields for merging
+    # Normalize merging keys (strip "t3_" if present)
     posts["name"] = posts["name"].astype(str).str.replace(r"^t3_", "", regex=True)
     comments["link_id"] = comments["link_id"].astype(str).str.replace(r"^t3_", "", regex=True)
     comments["body"] = comments["body"].astype(str).apply(norm)
 
-    # aggregate comments
     comments_per_post = (
         comments.groupby("link_id")["body"]
         .apply(lambda texts: " ".join(t for t in texts if isinstance(t, str)))
@@ -170,20 +163,20 @@ def build_model_bundle(posts_path: str,
     df["comments_text"] = df["comments_text"].fillna("")
     df["all_text"] = (df["title"].fillna("") + " " + df["selftext"].fillna("") + " " + df["comments_text"].fillna("")).str.strip()
 
-    # datetimes + engagement
+    # Datetime + engagement
     df["created_utc"] = pd.to_datetime(df["created_utc"], unit="s", errors="coerce", utc=True)
     df = df.dropna(subset=["created_utc"]).copy()
     df["score"] = df["score"].astype(float)
     df["num_comments"] = df["num_comments"].astype(float)
     df["engagement"] = df["score"] + df["num_comments"]
 
-    # sentiment
+    # Sentiment
     df["sentiment"] = df["all_text"].apply(lambda t: float(vader.polarity_scores(t)["compound"]) if isinstance(t, str) else 0.0)
 
-    # brand/item discovery (uses spaCy NER on titles for speed)
-    BRANDS, ITEMS, BRAND_RE, ITEM_RE = build_brand_item_regex_from_dataframe(df)
+    # Brand/item discovery (uses spaCy NER on titles for speed)
+    BRANDS, ITEMS, BRAND_RE, ITEM_RE = build_brand_item_regex(df, nlp)
 
-    # extraction helpers
+    # Extraction helpers
     def canonicalize_brand(raw: str) -> str:
         s = re.sub(r"\s+", " ", raw.strip().lower())
         if s in {"nb", "new balance"}:
@@ -209,7 +202,7 @@ def build_model_bundle(posts_path: str,
     df["brands"] = df["all_text"].apply(extract_brands)
     df["items"] = df["all_text"].apply(extract_items)
 
-    # build microtopics
+    # Build microtopics
     rows = []
     for _, r in df.iterrows():
         brands = r["brands"]
@@ -236,9 +229,9 @@ def build_model_bundle(posts_path: str,
             })
     micro = pd.DataFrame(rows)
     if micro.empty:
-        raise RuntimeError("No microtopics found after extraction. Check your BRANDS/ITEMS patterns and data.")
+        raise RuntimeError("No microtopics found. Check your brand/item extraction rules and input data.")
 
-    # weekly aggregation
+    # Aggregate weekly
     agg = (micro.groupby(["microtopic", "brand", "item", "iso_year", "iso_week", "week_start"], as_index=False)
            .agg(posts=("id", "count"),
                 engagement_sum=("engagement", "sum"),
@@ -246,12 +239,12 @@ def build_model_bundle(posts_path: str,
                 comments_sum=("num_comments", "sum"),
                 sentiment_mean=("sentiment", "mean"),
                 selftext_rate=("has_selftext", "mean")))
-    # filter small topics
+    # Filter tiny topics
     topic_sizes = agg.groupby("microtopic")["posts"].sum().reset_index(name="total_posts")
     big_topics = topic_sizes[topic_sizes["total_posts"] >= MIN_POSTS_PER_MICROTOPIC]["microtopic"]
     agg = agg[agg["microtopic"].isin(big_topics)].reset_index(drop=True)
 
-    # rolling features per microtopic
+    # Rolling features
     def add_rolling_features(g):
         g = g.sort_values(["iso_year", "iso_week"]).copy()
         g["engagement_prev"] = g["engagement_sum"].shift(1).fillna(0.0)
@@ -271,7 +264,7 @@ def build_model_bundle(posts_path: str,
     feat["weekofyear_cos"] = np.cos(2 * np.pi * feat["iso_week"] / 52.0)
     feat = feat.dropna(subset=["engagement_next"]).reset_index(drop=True)
 
-    # train/test split by time
+    # Train/test split (time-based)
     all_weeks = (feat[["iso_year", "iso_week", "week_start"]]
                  .drop_duplicates()
                  .sort_values(["iso_year", "iso_week"])
@@ -331,10 +324,10 @@ def build_model_bundle(posts_path: str,
     X_latest = safe_X(latest)
     latest["surge_prob"] = clf.predict_proba(X_latest)[:, 1]
     latest["pred_next_engagement"] = reg.predict(X_latest)
-    watchlist = latest[
-        ["microtopic", "brand", "item", "iso_year", "iso_week", "week_start",
-         "posts", "engagement_sum", "sentiment_mean", "surge_prob", "pred_next_engagement"]
-    ].sort_values(["surge_prob", "pred_next_engagement"], ascending=False).reset_index(drop=True)
+    watchlist = latest[[
+        "microtopic", "brand", "item", "iso_year", "iso_week", "week_start",
+        "posts", "engagement_sum", "sentiment_mean", "surge_prob", "pred_next_engagement"
+    ]].sort_values(["surge_prob", "pred_next_engagement"], ascending=False).reset_index(drop=True)
 
     return {
         "agg": agg,
@@ -350,7 +343,6 @@ def build_model_bundle(posts_path: str,
     }
 
 
-# Optional helper to save a pickle bundle
 def save_model_bundle(posts_path: str, comments_path: str, out_path: str = "model_bundle.pkl", do_downloads: bool = False):
     bundle = build_model_bundle(posts_path, comments_path, do_downloads=do_downloads)
     with open(out_path, "wb") as f:
@@ -358,14 +350,12 @@ def save_model_bundle(posts_path: str, comments_path: str, out_path: str = "mode
     print(f"Saved model bundle to {out_path}")
 
 
-# If executed directly, build and save a pickle (useful for offline runs)
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Build and optionally save model bundle.")
-    parser.add_argument("--posts", default="merged_reddit_posts_final.zip", help="Path to posts CSV or zip")
-    parser.add_argument("--comments", default="all_comments_multi2.zip", help="Path to comments CSV or zip")
+    parser.add_argument("--posts", default="Data/merged_reddit_posts_final.zip", help="Path to posts CSV or zip")
+    parser.add_argument("--comments", default="Data/all_comments_multi2.zip", help="Path to comments CSV or zip")
     parser.add_argument("--out", default="model_bundle.pkl", help="Output pickle path")
     parser.add_argument("--download", action="store_true", help="Allow auto-download of missing NLP assets (not recommended in production)")
     args = parser.parse_args()
     save_model_bundle(args.posts, args.comments, args.out, do_downloads=args.download)
-
