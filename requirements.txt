@@ -11,6 +11,5 @@ streamlit
 tensorflow
     keras
     xgboost
-    prophet
 
 
