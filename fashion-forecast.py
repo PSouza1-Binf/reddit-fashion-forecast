@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-from brand_model import build_everything_from_posts
+#from brand_model import build_everything_from_posts
 
 st.set_page_config(page_title="Brand Trend Forecaster", layout="wide")
 
@@ -10,7 +10,7 @@ st.set_page_config(page_title="Brand Trend Forecaster", layout="wide")
 def load_csv(p): return pd.read_csv(p)
 
 @st.cache_resource(show_spinner=True)
-def build_models_from_df(df): return build_everything_from_posts(df)
+#def build_models_from_df(df): return build_everything_from_posts(df)
 
 st.title("🔎 Brand Trend Forecaster")
 st.caption("Search brand/item and view historical + forecast engagement with surge alerts.")
