@@ -32,6 +32,16 @@ RANDOM_STATE = 42
 # -----------------------
 # Helpers
 # -----------------------
+import zipfile
+
+def load_csv_from_zip(path):
+    """Load the first CSV found inside a ZIP archive."""
+    with zipfile.ZipFile(path, "r") as z:
+        csv_name = [f for f in z.namelist() if f.endswith(".csv")][0]
+        with z.open(csv_name) as f:
+            return pd.read_csv(f)
+
+
 def _ensure_nltk_vader(do_download: bool = False):
     try:
         SentimentIntensityAnalyzer()
@@ -131,9 +141,10 @@ def build_model_bundle(posts_path: str,
     vader = _ensure_nltk_vader(do_download=do_downloads)
     nlp = _ensure_spacy_model(do_download=do_downloads)
 
-    # Load data (support CSVs or zipped CSVs)
-    posts = pd.read_csv(posts_path)
-    comments = pd.read_csv(comments_path)
+    # Load zipped data files (located in /Data/)
+    df = load_csv_from_zip("Data/merged_reddit_posts_final.zip")
+    comments_df = load_csv_from_zip("Data/all_comments_multi2.zip")
+
 
     # --- clean posts ---
     posts["title"] = posts["title"].apply(norm)
