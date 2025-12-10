@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import pickle
 from brand_model import build_everything_from_posts
 
 st.set_page_config(page_title="Brand Trend Forecaster", layout="wide")
@@ -15,9 +16,20 @@ def build_models_from_df(df): return build_everything_from_posts(df)
 st.title("🔎 Brand Trend Forecaster")
 st.caption("Search brand/item and view historical + forecast engagement with surge alerts.")
 
-raw_df = pd.read_csv("merged_reddit_posts_final.zip", compression="zip")
-bundle = build_models_from_df(raw_df)
-agg, watchlist, pr_auc, mae = bundle["agg"], bundle["watchlist"], bundle["pr_auc"], bundle["mae"]
+
+
+# Load pretrained model bundle instead of rebuilding
+@st.cache_resource(show_spinner=True)
+def load_model():
+    with open("model_bundle.pkl", "rb") as f:
+        return pickle.load(f)
+
+bundle = load_model()(raw_df)
+agg = bundle["agg"]
+watchlist = bundle["watchlist"]
+pr_auc = bundle.get("pr_auc", None)
+mae = bundle.get("mae", None)
+surge_thresh = bundle.get("surge_threshold", None)
 
 all_brands = sorted(agg["brand"].dropna().unique().tolist())
 all_items = sorted(agg["item"].dropna().unique().tolist())
@@ -112,12 +124,44 @@ with tab_hist:
 # ---------------------- FORECAST ----------------------
 with tab_forecast:
     st.subheader("Forecast")
-    st.write("Forecasted microtopics contributing to next week's engagement:")
+
+    # Sort microtopics by predicted engagement
     w_sorted = w.sort_values("pred_next_engagement", ascending=False)
+    st.write("Forecasted microtopics contributing to next week's engagement:")
     st.dataframe(w_sorted.head(20))
 
+    # ---------- NEXT WEEK FORECAST CHART ----------
+    st.subheader("📈 Predicted Engagement: Next Week")
 
-# ---------------------- SURGE ----------------------
+    next_week_df = pd.DataFrame({
+        "week": ["Latest Week", "Next Week"],
+        "engagement": [latest_actual, pred_next]
+    })
+
+    fig_next = px.line(next_week_df, x="week", y="engagement", markers=True,
+                       title="Next-Week Engagement Forecast")
+    st.plotly_chart(fig_next, use_container_width=True)
+
+    # ---------- TWO-WEEK RECURSIVE FORECAST ----------
+    st.subheader("📈 Predicted Engagement: Next 2 Weeks")
+
+    # Week 1 prediction already computed as pred_next
+    # For week 2 prediction, recursively forecast
+    week1 = pred_next
+    # simple heuristic: use same percent change as model predicted for next week
+    pct_change = (pred_next - latest_actual) / latest_actual if latest_actual > 0 else 0
+    week2 = week1 * (1 + pct_change)
+
+    two_week_df = pd.DataFrame({
+        "week": ["Latest Week", "Next Week", "Week 2"],
+        "engagement": [latest_actual, week1, week2]
+    })
+
+    fig_two = px.line(two_week_df, x="week", y="engagement", markers=True,
+                       title="Two-Week Engagement Forecast (Simple Recursive)")
+    st.plotly_chart(fig_two, use_container_width=True)
+
+# ---------------------- SURGE ---------------------- ----------------------
 with tab_surge:
     st.subheader("Surge Alerts & Top Microtopics")
 
@@ -144,4 +188,3 @@ with tab_raw:
     st.dataframe(w)
 
 st.caption(f"Model eval — PR-AUC: {pr_auc:.3f}, MAE: {mae:.2f}")
-
