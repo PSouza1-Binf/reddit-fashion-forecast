@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import pickle
 from brand_model import build_everything_from_posts
 
 st.set_page_config(page_title="Brand Trend Forecaster", layout="wide")
@@ -18,13 +17,14 @@ st.caption("Search brand/item and view historical + forecast engagement with sur
 
 
 
-# Load pretrained model bundle instead of rebuilding
-@st.cache_resource(show_spinner=True)
-def load_model():
-    with open("model_bundle.pkl", "rb") as f:
-        return pickle.load(f)
+from new_brand_model import build_everything_from_raw
 
-bundle = load_model()(raw_df)
+@st.cache_resource(show_spinner=True)
+def load_model_bundle():
+    return build_everything_from_raw()
+
+bundle = load_model_bundle()
+
 agg = bundle["agg"]
 watchlist = bundle["watchlist"]
 pr_auc = bundle.get("pr_auc", None)
