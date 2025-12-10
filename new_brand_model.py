@@ -8,8 +8,6 @@ Original file is located at
 """
 
 # Install dependencies (run once per new Colab session)
-!pip install nltk spacy scikit-learn plotly
-!python -m spacy download en_core_web_sm
 import nltk
 nltk.download("vader_lexicon")
 
