@@ -37,36 +37,53 @@ ts_feat = art.get("ts_feat")
 # ---------------------------------------------------------
 st.sidebar.header("Filters")
 
-all_brands = sorted(latest_df["brand"].unique())
+# Always build filter options from ALL time-series
+all_brands = sorted(ts_agg["brand"].dropna().unique())
 brand = st.sidebar.selectbox("Brand", ["(All Brands)"] + all_brands)
 
-# item list depends on brand
-if brand and brand != "(All Brands)":
-    brand_items = sorted(latest_df[latest_df["brand"] == brand]["item"].unique())
-else:
-    brand_items = sorted(latest_df["item"].unique())
-
-item = st.sidebar.selectbox("Item", ["(All Items)"] + brand_items)
-
-# Apply filters
-filtered = latest_df.copy()
-
+# Items depend on brand selection
 if brand != "(All Brands)":
-    filtered = filtered[filtered["brand"] == brand]
+    items_list = sorted(ts_agg[ts_agg["brand"] == brand]["item"].dropna().unique())
+else:
+    items_list = sorted(ts_agg["item"].dropna().unique())
 
-if item != "(All Items)":
-    filtered = filtered[filtered["item"] == item]
+item = st.sidebar.selectbox("Item", ["(All Items)"] + items_list)
+
 
 # ---------------------------------------------------------
-# MODEL PREDICTIONS
+# UNIVERSAL FILTER FUNCTION
 # ---------------------------------------------------------
-filtered = filtered.reset_index(drop=True)
-filtered["surge_prob"] = clf.predict_proba(latest_features.iloc[filtered.index])[:, 1]
-filtered["pred_next_engagement"] = reg.predict(latest_features.iloc[filtered.index])
+def apply_filters(df):
+    out = df.copy()
+    if brand != "(All Brands)":
+        out = out[out["brand"] == brand]
+    if item != "(All Items)":
+        out = out[out["item"] == item]
+    return out
 
-filtered["weighted_surge"] = (
-    filtered["surge_prob"] * np.log1p(filtered["engagement_sum"])
-)
+# Apply filters universally
+filtered_latest = apply_filters(latest_df)
+filtered_agg = apply_filters(ts_agg)
+filtered_ts  = apply_filters(ts_feat)
+
+
+# ---------------------------------------------------------
+# MODEL PREDICTIONS (safe indexing)
+# ---------------------------------------------------------
+if not filtered_latest.empty:
+    original_idx = filtered_latest.index  # index from latest_df
+
+    filtered_latest["surge_prob"] = clf.predict_proba(
+        latest_features.iloc[original_idx]
+    )[:, 1]
+
+    filtered_latest["pred_next_engagement"] = reg.predict(
+        latest_features.iloc[original_idx]
+    )
+
+    filtered_latest["weighted_surge"] = (
+        filtered_latest["surge_prob"] * np.log1p(filtered_latest["engagement_sum"])
+    )
 
 # ---------------------------------------------------------
 # TABS
@@ -103,28 +120,26 @@ with tab1:
 # TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
 # ---------------------------------------------------------
 with tab2:
-    st.title("Historical Trends")
+    st.subheader("📈 Historical Trends")
 
-    if ts_agg is None:
-        st.warning("No time-series data found in PKL.")
+    if filtered_agg.empty:
+        st.info("No time-series data available for this selection.")
     else:
-        st.subheader("Engagement Over Time")
-
-        # Select microtopic to plot
-        mt_list = sorted(ts_agg["microtopic"].unique())
-        mt_choice = st.selectbox("Microtopic", mt_list)
-
-        mt_df = ts_agg[ts_agg["microtopic"] == mt_choice].sort_values("week_start")
+        hist = filtered_agg.groupby("week_start", as_index=False).agg(
+            engagement=("engagement_sum", "sum"),
+            posts=("posts", "sum"),
+            sentiment=("sentiment_mean", "mean"),
+        )
 
         fig = px.line(
-            mt_df,
+            hist,
             x="week_start",
-            y="engagement_sum",
-            title=f"Engagement Over Time: {mt_choice}"
+            y="engagement",
+            title="Engagement Over Time",
+            labels={"week_start": "Week", "engagement": "Engagement"},
         )
         st.plotly_chart(fig, use_container_width=True)
 
-        st.dataframe(mt_df)
 
 # ---------------------------------------------------------
 # TAB 3 — FORECAST
@@ -134,7 +149,8 @@ with tab3:
 
     st.write("Predicted engagement for next week:")
 
-    top_pred = filtered.sort_values("pred_next_engagement", ascending=False).head(15)
+    top_pred = filtered_latest.sort_values("pred_next_engagement", ascending=False).head(15)
+
 
     fig = px.bar(
         top_pred,
