@@ -182,7 +182,7 @@ with tab3:
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Forecast Table")
-    forecast_cols = ["microtopic", "brand", "item", "pred_next_engagement"]
+    forecast_cols = ["brand", "item", "pred_next_engagement"]
     st.dataframe(top_pred[forecast_cols])
 
 
