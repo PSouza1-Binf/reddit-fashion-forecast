@@ -123,14 +123,16 @@ with tab1:
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
 
-    st.subheader("Top microtopics (filtered)")
+    overview_cols = [
+    "microtopic", "brand", "item",
+    "engagement_sum", "sentiment_mean",
+    "surge_prob", "pred_next_engagement"
+                    ]
+
     st.dataframe(
-        filtered_latest[[
-            "microtopic", "brand", "item",
-            "engagement_sum", "sentiment_mean",
-            "surge_prob", "pred_next_engagement"
-        ]].sort_values("pred_next_engagement", ascending=False).head(20)
-    )
+    filtered_latest[overview_cols].sort_values("pred_next_engagement", ascending=False).head(20)
+                )
+
 
 # ---------------------------------------------------------
 # TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
