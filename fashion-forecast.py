@@ -123,57 +123,74 @@ with tab1:
     colA, colB = st.columns(2)
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
-     # ---------------------------------------------------------
-# LINE CHART — ACTUAL vs FORECAST (1-WEEK)
+    # ---------------------------------------------------------
+# BRAND-LEVEL FORECAST LINE CHART (1-week + 2-week demo)
 # ---------------------------------------------------------
-          
-# Only build chart when the user selected a specific brand
-    if brand != "(All Brands)":
 
-     # Get historical aggregate for this brand (if ts_agg exists)
-      if ts_agg is not None:
-        brand_hist = ts_agg[ts_agg["brand"] == brand].copy()
+if brand != "(All Brands)" and ts_agg is not None:
 
-        if not brand_hist.empty:
+    brand_hist = ts_agg[ts_agg["brand"] == brand].copy()
 
-            # Latest actual week
-            # Latest actual engagement (brand-level)
-            latest_actual = (
-              brand_hist.loc[brand_hist["week_start"] == latest_week, "engagement_sum"].sum()
-                            )
-            latest_actual = float(latest_actual)
+    if item != "(All Items)":
+        brand_hist = brand_hist[brand_hist["item"] == item]
 
+    if brand_hist.empty:
+        st.warning("No time-series data available for this brand/item.")
+    else:
+        # Ensure proper grouping (avoid duplicates)
+        brand_hist = (
+            brand_hist.groupby("week_start", as_index=False)
+            .agg(engagement_sum=("engagement_sum", "sum"))
+            .sort_values("week_start")
+        )
 
-            # Predicted next-week engagement (sum of microtopics)
-            next_pred = float(
-                filtered.groupby("brand")["pred_next_engagement"].sum().get(brand, 0.0)
-            )
+        # Latest available week (brand-level)
+        latest_week = brand_hist["week_start"].max()
 
-            # Build 1-week forecast line
-            df_forecast_1 = pd.DataFrame({
-                "week_start": [latest_week, latest_week + pd.Timedelta(days=7)],
-                "engagement": [latest_actual, next_pred],
-                "type": ["actual", "predicted"]
-            })
+        # Actual engagement of the latest completed week
+        latest_actual = (
+            brand_hist.loc[brand_hist["week_start"] == latest_week, "engagement_sum"]
+            .sum()
+        )
+        latest_actual = float(latest_actual)
 
-            st.subheader("📈 1-Week Forecast Line")
-            fig_line = px.line(
-                df_forecast_1,
-                x="week_start",
-                y="engagement",
-                color="type",
-                markers=True,
-                title=f"{brand}: Actual vs 1-Week Predicted Engagement"
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-    st.subheader("Top microtopics (filtered)")
-    st.dataframe(
-        filtered_latest[[
-            "microtopic", "brand", "item",
-            "engagement_sum", "sentiment_mean",
-            "surge_prob", "pred_next_engagement"
-        ]].sort_values("pred_next_engagement", ascending=False).head(20)
-    )
+        # -------------------------------------------------
+        # Generate forecast points
+        # -------------------------------------------------
+        next_week_pred = float(
+            filtered["pred_next_engagement"].sum()
+        )
+
+        # Simple 2-week projection (extend later if needed)
+        next2_week_pred = next_week_pred * 1.05  # placeholder until we build multi-step
+
+        # -------------------------------------------------
+        # Prepare DataFrame for line chart
+        # -------------------------------------------------
+        fc_df = pd.DataFrame({
+            "week": [latest_week, latest_week + pd.Timedelta(days=7), latest_week + pd.Timedelta(days=14)],
+            "engagement": [latest_actual, next_week_pred, next2_week_pred],
+            "type": ["actual", "forecast", "forecast"]
+        })
+
+        # -------------------------------------------------
+        # Plot line chart
+        # -------------------------------------------------
+        st.subheader("📈 Engagement Forecast (1–2 weeks)")
+
+        fig_fc = px.line(
+            fc_df,
+            x="week",
+            y="engagement",
+            color="type",
+            markers=True,
+            title=f"Forecast for {brand} ({item})",
+        )
+
+        st.plotly_chart(fig_fc, use_container_width=True)
+
+else:
+    st.info("Select a specific brand to view forecast time-series charts.")
 
 # ---------------------------------------------------------
 # TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
