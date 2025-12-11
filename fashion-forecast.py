@@ -182,7 +182,7 @@ with tab4:
     st.title("Surge Analysis")
 
     st.subheader("Surge Alerts (surge_prob ≥ 0.90)")
-    alerts = filtered[filtered["surge_prob"] >= 0.90].sort_values("surge_prob", ascending=False)
+    alerts = filtered_latest[filtered_latest["surge_prob"] >= 0.90].sort_values("surge_prob", ascending=False)
 
     if alerts.empty:
         st.success("No major surge warnings this week.")
