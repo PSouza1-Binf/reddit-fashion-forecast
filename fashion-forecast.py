@@ -137,10 +137,12 @@ with tab1:
         if not brand_hist.empty:
 
             # Latest actual week
-            latest_week = brand_hist["week_start"].max()
-            latest_actual = float(
-                brand_hist.loc[brand_hist["week_start"] == latest_week, "engagement_sum"]
-            )
+            # Latest actual engagement (brand-level)
+            latest_actual = (
+              brand_hist.loc[brand_hist["week_start"] == latest_week, "engagement_sum"].sum()
+                            )
+            latest_actual = float(latest_actual)
+
 
             # Predicted next-week engagement (sum of microtopics)
             next_pred = float(
