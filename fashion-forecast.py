@@ -95,6 +95,12 @@ if not filtered_latest.empty:
         filtered_latest["surge_prob"] * np.log1p(filtered_latest["engagement_sum"])
     )
 
+# ---------------------------------------------------------
+# SAFETY CHECK: No rows after filtering
+# ---------------------------------------------------------
+if filtered_latest.empty:
+    st.warning("No microtopics match this brand + item selection.")
+    st.stop()
 
 # ---------------------------------------------------------
 # TABS
