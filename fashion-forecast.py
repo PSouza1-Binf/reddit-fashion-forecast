@@ -101,7 +101,27 @@ with tab1:
 # ---------------------------------------------------------
 with tab2:
     st.title("Historical Trends")
-    st.info("Historical charts can be added here once time-series data is packaged into the PKL.")
+
+    if ts_agg is None:
+        st.warning("No time-series data found in PKL.")
+    else:
+        st.subheader("Engagement Over Time")
+
+        # Select microtopic to plot
+        mt_list = sorted(ts_agg["microtopic"].unique())
+        mt_choice = st.selectbox("Microtopic", mt_list)
+
+        mt_df = ts_agg[ts_agg["microtopic"] == mt_choice].sort_values("week_start")
+
+        fig = px.line(
+            mt_df,
+            x="week_start",
+            y="engagement_sum",
+            title=f"Engagement Over Time: {mt_choice}"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.dataframe(mt_df)
 
 # ---------------------------------------------------------
 # TAB 3 — FORECAST
