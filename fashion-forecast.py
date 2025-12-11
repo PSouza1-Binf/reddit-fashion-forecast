@@ -1,4 +1,4 @@
-# fashion-forecast.py
+nmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm# fashion-forecast.py
 # Clean, production-ready Streamlit app using fashion_model.pkl
 
 import streamlit as st
@@ -120,10 +120,52 @@ with tab1:
     including next-week engagement predictions and surge probability alerts.
     """)
 
+    
     colA, colB = st.columns(2)
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
+    # ---------------------------------------------------------
+   # LINE CHART — ACTUAL vs FORECAST (1-WEEK)
+   # ---------------------------------------------------------
 
+# Only build chart when the user selected a specific brand
+   if brand != "(All Brands)":
+
+    # Get historical aggregate for this brand (if ts_agg exists)
+     if ts_agg is not None:
+        brand_hist = ts_agg[ts_agg["brand"] == brand].copy()
+
+        if not brand_hist.empty:
+
+            # Latest actual week
+            latest_week = brand_hist["week_start"].max()
+            latest_actual = float(
+                brand_hist.loc[brand_hist["week_start"] == latest_week, "engagement_sum"]
+            )
+
+            # Predicted next-week engagement (sum of microtopics)
+            next_pred = float(
+                filtered.groupby("brand")["pred_next_engagement"].sum().get(brand, 0.0)
+            )
+
+            # Build 1-week forecast line
+            df_forecast_1 = pd.DataFrame({
+                "week_start": [latest_week, latest_week + pd.Timedelta(days=7)],
+                "engagement": [latest_actual, next_pred],
+                "type": ["actual", "predicted"]
+            })
+
+            st.subheader("📈 1-Week Forecast Line")
+            fig_line = px.line(
+                df_forecast_1,
+                x="week_start",
+                y="engagement",
+                color="type",
+                markers=True,
+                title=f"{brand}: Actual vs 1-Week Predicted Engagement"
+            )
+            st.plotly_chart(fig_line, use_container_width=True)
+            #################################3
     st.subheader("Top microtopics (filtered)")
     st.dataframe(
         filtered_latest[[
