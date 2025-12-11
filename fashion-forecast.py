@@ -123,9 +123,12 @@ with tab1:
     colA, colB = st.columns(2)
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
-    # ---------------------------------------------------------
+# ---------------------------------------------------------
 # BRAND-LEVEL FORECAST LINE CHART (1-week + 2-week demo)
 # ---------------------------------------------------------
+if filtered_latest.empty:
+    st.info("No forecast available for this selection.")
+    st.stop()
 
 if brand != "(All Brands)" and ts_agg is not None:
 
@@ -158,8 +161,9 @@ if brand != "(All Brands)" and ts_agg is not None:
         # Generate forecast points
         # -------------------------------------------------
         next_week_pred = float(
-            filtered["pred_next_engagement"].sum()
+            filtered_latest["pred_next_engagement"].sum()
         )
+
 
         # Simple 2-week projection (extend later if needed)
         next2_week_pred = next_week_pred * 1.05  # placeholder until we build multi-step
