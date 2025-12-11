@@ -28,6 +28,9 @@ surge_threshold = art["surge_threshold"]
 FEATURE_COLS = art["feature_cols"]
 latest_features = art["latest_features"]        # DataFrame-like, already safe_X processed
 latest_df = art["latest_df"].copy()             # microtopic-level latest week data
+ts_agg = art.get("ts_agg")
+ts_feat = art.get("ts_feat")
+
 
 # ---------------------------------------------------------
 # SIDEBAR FILTERS
