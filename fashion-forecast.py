@@ -138,6 +138,15 @@ with tab1:
 # TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
 # ---------------------------------------------------------
 st.subheader("📈 Historical Trends")
+
+if filtered_agg.empty:
+        st.info("No time-series data available for this selection.")
+    else:
+        hist = filtered_agg.groupby("week_start", as_index=False).agg(
+            engagement=("engagement_sum", "sum"),
+            posts=("posts", "sum"),
+            sentiment=("sentiment_mean", "mean"),
+        )
 with tab2:
         # Always show line chart if week_start + engagement exist
     if "engagement" in hist.columns:
@@ -153,14 +162,7 @@ with tab2:
         st.info("Not enough data for historical charts.")
     
 
-    if filtered_agg.empty:
-        st.info("No time-series data available for this selection.")
-    else:
-        hist = filtered_agg.groupby("week_start", as_index=False).agg(
-            engagement=("engagement_sum", "sum"),
-            posts=("posts", "sum"),
-            sentiment=("sentiment_mean", "mean"),
-        )
+    
 
         # SAFELY select only the columns that exist
         desired_cols = ["brand","item","week_start", "engagement", "posts", "sentiment"]
