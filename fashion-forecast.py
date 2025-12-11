@@ -137,8 +137,21 @@ with tab1:
 # ---------------------------------------------------------
 # TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
 # ---------------------------------------------------------
+st.subheader("📈 Historical Trends")
 with tab2:
-    st.subheader("📈 Historical Trends")
+        # Always show line chart if week_start + engagement exist
+    if "engagement" in hist.columns:
+        fig = px.line(
+                hist,
+                x="week_start",
+                y="engagement",
+                title="Engagement Over Time",
+                labels={"week_start": "Week", "engagement": "Engagement"},
+            )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Not enough data for historical charts.")
+    
 
     if filtered_agg.empty:
         st.info("No time-series data available for this selection.")
@@ -150,7 +163,7 @@ with tab2:
         )
 
         # SAFELY select only the columns that exist
-        desired_cols = ["week_start", "engagement", "posts", "sentiment"]
+        desired_cols = ["brand","item","week_start", "engagement", "posts", "sentiment"]
         hist_cols = [c for c in desired_cols if c in hist.columns]
 
         if not hist_cols:
@@ -158,18 +171,7 @@ with tab2:
         else:
             st.dataframe(hist[hist_cols])
 
-        # Always show line chart if week_start + engagement exist
-        if "engagement" in hist.columns:
-            fig = px.line(
-                hist,
-                x="week_start",
-                y="engagement",
-                title="Engagement Over Time",
-                labels={"week_start": "Week", "engagement": "Engagement"},
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Not enough data for historical charts.")
+
 
 
 
