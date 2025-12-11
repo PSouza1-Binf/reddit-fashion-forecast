@@ -157,6 +157,8 @@ with tab2:
             labels={"week_start": "Week", "engagement": "Engagement"},
         )
         st.plotly_chart(fig, use_container_width=True)
+    hist_cols = ["week_start", "engagement", "posts", "sentiment"]
+    st.dataframe(hist[hist_cols])
 
 
 # ---------------------------------------------------------
@@ -180,7 +182,9 @@ with tab3:
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Forecast Table")
-    st.dataframe(top_pred)
+    forecast_cols = ["microtopic", "brand", "item", "pred_next_engagement"]
+    st.dataframe(top_pred[forecast_cols])
+
 
 # ---------------------------------------------------------
 # TAB 4 — SURGE ANALYSIS
@@ -195,7 +199,12 @@ with tab4:
         st.success("No major surge warnings this week.")
     else:
         st.error("Surge alerts detected!")
-        st.dataframe(alerts)
+        surge_alert_cols = [
+        "microtopic", "brand", "item",
+        "surge_prob", "engagement_sum"
+                            ]
+st.dataframe(alerts[surge_alert_cols])
+
 
     st.subheader("Top Surging Microtopics (Weighted)")
     top_surge = filtered_latest.sort_values("weighted_surge", ascending=False).head(20)
@@ -209,8 +218,13 @@ with tab4:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-    st.dataframe(top_surge)
+    surge_cols = [
+    "microtopic", "brand", "item",
+    "weighted_surge", "surge_prob"
+                ]
+    st.dataframe(top_surge[surge_cols])
 
+    
 # ---------------------------------------------------------
 # TAB 5 — RAW DATA
 # ---------------------------------------------------------
