@@ -115,12 +115,12 @@ with tab1:
     """)
 
     colA, colB = st.columns(2)
-    colA.metric("Microtopics (filtered)", f"{len(filtered):,}")
+    colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
 
     st.subheader("Top microtopics (filtered)")
     st.dataframe(
-        filtered[[
+        filtered_latest[[
             "microtopic", "brand", "item",
             "engagement_sum", "sentiment_mean",
             "surge_prob", "pred_next_engagement"
