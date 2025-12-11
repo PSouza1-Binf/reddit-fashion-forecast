@@ -181,8 +181,8 @@ with tab3:
 with tab4:
     st.title("Surge Analysis")
 
-    st.subheader("Surge Alerts (surge_prob ≥ 0.90)")
-    alerts = filtered_latest[filtered_latest["surge_prob"] >= 0.90].sort_values("surge_prob", ascending=False)
+    st.subheader("Surge Alerts (surge_prob ≥ 0.40)")
+    alerts = filtered_latest[filtered_latest["surge_prob"] >= 0.40].sort_values("surge_prob", ascending=False)
 
     if alerts.empty:
         st.success("No major surge warnings this week.")
@@ -191,7 +191,7 @@ with tab4:
         st.dataframe(alerts)
 
     st.subheader("Top Surging Microtopics (Weighted)")
-    top_surge = filtered.sort_values("weighted_surge", ascending=False).head(20)
+    top_surge = filtered_latest.sort_values("weighted_surge", ascending=False).head(20)
 
     fig2 = px.bar(
         top_surge,
@@ -209,5 +209,5 @@ with tab4:
 # ---------------------------------------------------------
 with tab5:
     st.title("Explore Raw Latest-Week Microtopics")
-    st.dataframe(filtered)
+    st.dataframe(filtered_latest)
 
