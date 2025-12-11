@@ -165,13 +165,13 @@ with tab2:
     
 
         # SAFELY select only the columns that exist
-        desired_cols = ["brand","item","week_start", "engagement", "posts", "sentiment"]
-        hist_cols = [c for c in desired_cols if c in hist.columns]
+    desired_cols = ["brand","item","week_start", "engagement", "posts", "sentiment"]
+    hist_cols = [c for c in desired_cols if c in hist.columns]
 
-        if not hist_cols:
-            st.info("No historical data columns available.")
-        else:
-            st.dataframe(hist[hist_cols])
+    if not hist_cols:
+        st.info("No historical data columns available.")
+    else:
+        st.dataframe(hist[hist_cols])
 
 
 
