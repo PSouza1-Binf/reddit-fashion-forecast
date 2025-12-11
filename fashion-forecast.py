@@ -203,7 +203,7 @@ with tab4:
         "microtopic", "brand", "item",
         "surge_prob", "engagement_sum"
                             ]
-st.dataframe(alerts[surge_alert_cols])
+    st.dataframe(alerts[surge_alert_cols])
 
 
     st.subheader("Top Surging Microtopics (Weighted)")
