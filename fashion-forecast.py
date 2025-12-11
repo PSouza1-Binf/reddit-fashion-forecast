@@ -149,16 +149,28 @@ with tab2:
             sentiment=("sentiment_mean", "mean"),
         )
 
-        fig = px.line(
-            hist,
-            x="week_start",
-            y="engagement",
-            title="Engagement Over Time",
-            labels={"week_start": "Week", "engagement": "Engagement"},
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    hist_cols = ["microtopic","week_start", "engagement", "posts", "sentiment"]
-    st.dataframe(hist[hist_cols])
+        # SAFELY select only the columns that exist
+        desired_cols = ["week_start", "engagement", "posts", "sentiment"]
+        hist_cols = [c for c in desired_cols if c in hist.columns]
+
+        if not hist_cols:
+            st.info("No historical data columns available.")
+        else:
+            st.dataframe(hist[hist_cols])
+
+        # Always show line chart if week_start + engagement exist
+        if "engagement" in hist.columns:
+            fig = px.line(
+                hist,
+                x="week_start",
+                y="engagement",
+                title="Engagement Over Time",
+                labels={"week_start": "Week", "engagement": "Engagement"},
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Not enough data for historical charts.")
+
 
 
 # ---------------------------------------------------------
