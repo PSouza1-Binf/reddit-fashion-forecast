@@ -68,22 +68,33 @@ filtered_ts  = apply_filters(ts_feat)
 
 
 # ---------------------------------------------------------
-# MODEL PREDICTIONS (safe indexing)
+# MODEL PREDICTIONS (safe merge on microtopic)
 # ---------------------------------------------------------
 if not filtered_latest.empty:
-    original_idx = filtered_latest.index  # index from latest_df
+    # Build a features lookup table by microtopic
+    features_lookup = latest_features.copy()
+    features_lookup["microtopic"] = latest_df["microtopic"].values
 
-    filtered_latest["surge_prob"] = clf.predict_proba(
-        latest_features.iloc[original_idx]
-    )[:, 1]
-
-    filtered_latest["pred_next_engagement"] = reg.predict(
-        latest_features.iloc[original_idx]
+    # Merge filtered_latest with its matching features row
+    merged = filtered_latest.merge(
+        features_lookup,
+        on="microtopic",
+        how="left",
+        suffixes=("", "_feat")
     )
 
+    # Extract only the feature columns used in training
+    X = merged[FEATURE_COLS].astype(float)
+
+    # Predict
+    filtered_latest["surge_prob"] = clf.predict_proba(X)[:, 1]
+    filtered_latest["pred_next_engagement"] = reg.predict(X)
+
+    # Weighted surge
     filtered_latest["weighted_surge"] = (
         filtered_latest["surge_prob"] * np.log1p(filtered_latest["engagement_sum"])
     )
+
 
 # ---------------------------------------------------------
 # TABS
