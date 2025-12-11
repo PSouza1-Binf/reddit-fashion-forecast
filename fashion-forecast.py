@@ -1,5 +1,4 @@
-nmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm# fashion-forecast.py
-# Clean, production-ready Streamlit app using fashion_model.pkl
+# fashion-forecast.py
 
 import streamlit as st
 import pandas as pd
@@ -124,15 +123,15 @@ with tab1:
     colA, colB = st.columns(2)
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
-    # ---------------------------------------------------------
-   # LINE CHART — ACTUAL vs FORECAST (1-WEEK)
-   # ---------------------------------------------------------
-
+     # ---------------------------------------------------------
+# LINE CHART — ACTUAL vs FORECAST (1-WEEK)
+# ---------------------------------------------------------
+          
 # Only build chart when the user selected a specific brand
-   if brand != "(All Brands)":
+    if brand != "(All Brands)":
 
-    # Get historical aggregate for this brand (if ts_agg exists)
-     if ts_agg is not None:
+     # Get historical aggregate for this brand (if ts_agg exists)
+      if ts_agg is not None:
         brand_hist = ts_agg[ts_agg["brand"] == brand].copy()
 
         if not brand_hist.empty:
@@ -165,7 +164,6 @@ with tab1:
                 title=f"{brand}: Actual vs 1-Week Predicted Engagement"
             )
             st.plotly_chart(fig_line, use_container_width=True)
-            #################################3
     st.subheader("Top microtopics (filtered)")
     st.dataframe(
         filtered_latest[[
