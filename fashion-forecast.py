@@ -157,7 +157,7 @@ with tab2:
             labels={"week_start": "Week", "engagement": "Engagement"},
         )
         st.plotly_chart(fig, use_container_width=True)
-    hist_cols = ["week_start", "engagement", "posts", "sentiment"]
+    hist_cols = ["microtopic","week_start", "engagement", "posts", "sentiment"]
     st.dataframe(hist[hist_cols])
 
 
