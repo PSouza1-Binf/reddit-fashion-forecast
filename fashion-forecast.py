@@ -113,19 +113,6 @@ with tab1:
     colA, colB = st.columns(2)
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
-
-    overview_cols = [
-        "microtopic", "brand", "item",
-        "engagement_sum", "sentiment_mean",
-        "surge_prob", "pred_next_engagement"
-    ]
-
-    st.dataframe(
-        filtered_latest[overview_cols]
-        .sort_values("pred_next_engagement", ascending=False)
-        .head(20)
-    )
-
     # ------------------------------
     # Top 10 predicted items
     # ------------------------------
@@ -153,6 +140,19 @@ with tab1:
     })
 
     st.dataframe(top_items, use_container_width=True)
+    overview_cols = [
+        "microtopic", "brand", "item",
+        "engagement_sum", "sentiment_mean",
+        "surge_prob", "pred_next_engagement"
+    ]
+
+    st.dataframe(
+        filtered_latest[overview_cols]
+        .sort_values("pred_next_engagement", ascending=False)
+        .head(20)
+    )
+
+    
 
 # ---------------------------------------------------------
 # TAB 2 — HISTORICAL TRENDS
@@ -185,8 +185,10 @@ with tab2:
 # ---------------------------------------------------------
 with tab3:
     st.title("Forecast")
+
     st.write("Predicted engagement for next week:")
 
+    # Top predicted microtopics
     top_pred = (
         filtered_latest.sort_values("pred_next_engagement", ascending=False)
         .head(15)
@@ -202,21 +204,23 @@ with tab3:
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Forecast Table")
-    st.dataframe(top_pred[
-        [
-            "microtopic",
-            "brand",
-            "item",
-            "engagement_sum",
-            "sentiment_mean",
-            "surge_prob",
-            "pred_next_engagement",
+    st.dataframe(
+        top_pred[
+            [
+                "microtopic",
+                "brand",
+                "item",
+                "engagement_sum",
+                "sentiment_mean",
+                "surge_prob",
+                "pred_next_engagement",
+            ]
         ]
-    ])
+    )
 
-    # ---------------------------------------------------------
-    # REGRESSION-BASED 6-WEEK FORECAST
-    # ---------------------------------------------------------
+    # -------------------------------
+    # 6-WEEK BRAND FORECAST LINE CHART
+    # -------------------------------
     if brand != "(All Brands)" and not filtered_agg.empty:
 
         brand_hist = (
@@ -227,32 +231,33 @@ with tab3:
 
         if not brand_hist.empty:
 
-            # Fit linear trend
+            st.subheader("📈 6-Week Engagement Forecast (Regression-Based)")
+
+            # Trend fitting
             brand_hist["t"] = range(len(brand_hist))
             slope, intercept = np.polyfit(
                 brand_hist["t"], brand_hist["engagement_sum"], 1
             )
 
-            # Next week predicted from microtopics
+            # Actual next-week prediction
             next_week_pred = float(filtered_latest["pred_next_engagement"].sum())
 
             # Forecast 6 weeks
-            future_weeks = 6
-            t_future = np.arange(len(brand_hist), len(brand_hist) + future_weeks)
+            horizon = 6
+            t_future = np.arange(len(brand_hist), len(brand_hist) + horizon)
             trend_future = intercept + slope * t_future
 
-            # Align the first forecast week with actual model prediction
+            # Align first forecast week to model prediction
             trend_future += (next_week_pred - trend_future[0])
 
             fc_df = pd.DataFrame({
                 "week_start": list(brand_hist["week_start"]) +
                               [brand_hist["week_start"].max() + pd.Timedelta(weeks=i)
-                               for i in range(1, future_weeks + 1)],
-                "engagement": list(brand_hist["engagement_sum"]) + list(trend_future),
-                "type": ["history"] * len(brand_hist) + ["forecast"] * future_weeks
+                               for i in range(1, horizon+1)],
+                "engagement": list(brand_hist["engagement_sum"]) +
+                              list(trend_future),
+                "type": ["history"] * len(brand_hist) + ["forecast"] * horizon
             })
-
-            st.subheader("📈 6-Week Engagement Forecast (Regression-Based)")
 
             fig_fc = px.line(
                 fc_df,
@@ -260,7 +265,6 @@ with tab3:
                 y="engagement",
                 color="type",
                 markers=True,
-                labels={"week_start": "Week", "engagement": "Engagement"},
                 title=f"Brand-Level Forecast — {brand} ({item})",
             )
             st.plotly_chart(fig_fc, use_container_width=True)
