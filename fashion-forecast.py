@@ -132,11 +132,39 @@ with tab1:
     st.dataframe(
     filtered_latest[overview_cols].sort_values("pred_next_engagement", ascending=False).head(20)
                 )
+    # ---- NEW: Top 10 items for next week ----
+    st.subheader("Top 10 items for next week")
 
+    # Aggregate predictions at the item level within the current filters
+    top_items = (
+        filtered_latest
+        .dropna(subset=["item"])
+        .groupby(["brand", "item"], as_index=False)
+        .agg(
+            total_pred_next_engagement=("pred_next_engagement", "sum"),
+            avg_surge_prob=("surge_prob", "mean"),
+            current_engagement=("engagement_sum", "sum"),
+        )
+        .sort_values("total_pred_next_engagement", ascending=False)
+        .head(10)
+    )
+
+    # Make the columns a bit friendlier for display
+    top_items = top_items.rename(columns={
+        "brand": "Brand",
+        "item": "Item",
+        "current_engagement": "Current Engagement (sum)",
+        "total_pred_next_engagement": "Next Week Engagement (pred, sum)",
+        "avg_surge_prob": "Avg Surge Probability",
+    })
+
+    st.dataframe(top_items, use_container_width=True
 
 # ---------------------------------------------------------
 # TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
 # ---------------------------------------------------------
+
+with tab2:
 st.subheader("📈 Historical Trends")
 
 if filtered_agg.empty:
@@ -147,7 +175,6 @@ else:
             posts=("posts", "sum"),
             sentiment=("sentiment_mean", "mean"),
         )
-with tab2:
         # Always show line chart if week_start + engagement exist
     if "engagement" in hist.columns:
         fig = px.line(
