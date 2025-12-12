@@ -35,11 +35,11 @@ ts_feat = art.get("ts_feat")
 # ---------------------------------------------------------
 # SIDEBAR FILTERS
 # ---------------------------------------------------------
-st.sidebar.header("Filters")
+
 st.sidebar.markdown(
     """
-    <h1 style='text-align:center; font-size:26px; margin-bottom:0;'>
-        👗 Reddit Fashion Forecast
+    <h1 style='text-align:center; font-size:22px; margin-bottom:0;'>
+         Reddit Fashion Forecast
     </h1>
     <p style='text-align:center; font-size:14px; color:gray; margin-top:0;'>
         Weekly Trend Insights & Engagement Predictions
@@ -48,7 +48,7 @@ st.sidebar.markdown(
     """,
     unsafe_allow_html=True,
 )
-
+st.sidebar.header("Filters")
 all_brands = sorted(ts_agg["brand"].dropna().unique())
 brand = st.sidebar.selectbox("Brand", ["(All Brands)"] + all_brands)
 
