@@ -163,139 +163,121 @@ with tab1:
     st.dataframe(top_items, use_container_width=True)
 
 # ---------------------------------------------------------
-# TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
+# TAB 2 — HISTORICAL TRENDS
 # ---------------------------------------------------------
-
 with tab2:
- st.subheader("📈 Historical Trends")
+    st.subheader("📈 Historical Trends")
 
- if filtered_agg.empty:
+    if filtered_agg.empty:
         st.info("No time-series data available for this selection.")
- else:
+    else:
         hist = filtered_agg.groupby("week_start", as_index=False).agg(
             engagement=("engagement_sum", "sum"),
             posts=("posts", "sum"),
             sentiment=("sentiment_mean", "mean"),
         )
-        # Always show line chart if week_start + engagement exist
-if "engagement" in hist.columns:
-    fig = px.line(
+
+        fig = px.line(
             hist,
             x="week_start",
             y="engagement",
             title="Engagement Over Time",
             labels={"week_start": "Week", "engagement": "Engagement"},
-            )
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("Not enough data for historical charts.")
-    
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-    
-
-        # SAFELY select only the columns that exist
-    desired_cols = ["brand","item","week_start", "engagement", "posts", "sentiment"]
-    hist_cols = [c for c in desired_cols if c in hist.columns]
-
-    if not hist_cols:
-        st.info("No historical data columns available.")
-    else:
-        st.dataframe(hist[hist_cols])
-
-
-
-
+        # Optional column filtering:
+        st.dataframe(hist[["week_start", "engagement", "posts", "sentiment"]])
 
 # ---------------------------------------------------------
 # TAB 3 — FORECAST
 # ---------------------------------------------------------
-# ---------------------------------------------------------
-# TAB 3 — FORECAST (history + 1–2 week future)
-# ---------------------------------------------------------
 with tab3:
     st.title("Forecast")
 
-    # Must have time-series data available
-    if filtered_agg.empty:
-        st.info("Not enough time-series data to forecast.")
-    else:
-        # Build daily or weekly history (your model is weekly)
-        hist = (
-            filtered_agg.groupby("week_start", as_index=False)
-            .agg(engagement=("engagement_sum", "sum"))
-            .sort_values("week_start")
-        )
+    st.write("Predicted engagement for next week:")
 
-        # Convert to 'date' column (for consistency with your old chart)
-        hist = hist.rename(columns={"week_start": "date"})
+    # Top predicted microtopics
+    top_pred = (
+        filtered_latest.sort_values("pred_next_engagement", ascending=False)
+        .head(15)
+    )
 
-        # --------------------------
-        # Build simple next 2-week forecast
-        # --------------------------
-        last_date = hist["date"].max()
-        next_1 = last_date + pd.Timedelta(days=7)
-        next_2 = last_date + pd.Timedelta(days=14)
+    fig = px.bar(
+        top_pred,
+        x="microtopic",
+        y="pred_next_engagement",
+        color="pred_next_engagement",
+        title="Next Week Engagement Forecast (Microtopic-Level)",
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-        # Forecast = SUM of microtopic predictions
-        next1_pred = float(filtered_latest["pred_next_engagement"].sum())
-        next2_pred = next1_pred * 1.05  # temporary placeholder
+    st.subheader("Forecast Table")
+    st.dataframe(
+        top_pred[
+            [
+                "microtopic",
+                "brand",
+                "item",
+                "engagement_sum",
+                "sentiment_mean",
+                "surge_prob",
+                "pred_next_engagement",
+            ]
+        ]
+    )
 
-        # Build forecast DF
-        fc_df = pd.DataFrame({
-            "date": [next_1, next_2],
-            "forecast": [next1_pred, next2_pred],
-            # Optional CI placeholders
-            "ci_low": [next1_pred * 0.85, next2_pred * 0.85],
-            "ci_high": [next1_pred * 1.15, next2_pred * 1.15],
-        })
+    # -----------------------------------------------------------------
+    # BRAND-LEVEL FORECAST LINE CHART (Regression-Based, No Prophet)
+    # -----------------------------------------------------------------
+    if brand != "(All Brands)" and not filtered_agg.empty:
 
-        # --------------------------
-        # Combine history + forecast
-        # --------------------------
-        hist_plot = hist.copy()
-        hist_plot["type"] = "history"
+        brand_hist = filtered_agg.copy().groupby(
+            "week_start", as_index=False
+        ).agg(engagement_sum=("engagement_sum", "sum"))
 
-        fc_plot = fc_df.rename(columns={"forecast": "engagement"})[["date", "engagement"]]
-        fc_plot["type"] = "forecast"
+        if not brand_hist.empty:
 
-        combo = pd.concat([hist_plot, fc_plot], ignore_index=True)
+            brand_hist = brand_hist.sort_values("week_start")
 
-        # --------------------------
-        # Plot line chart
-        # --------------------------
-        fig2 = px.line(
-            combo,
-            x="date",
-            y="engagement",
-            color="type",
-            markers=True,
-            labels={"engagement": "Engagement", "date": "Date", "type": ""},
-            title="Engagement History + Forecast",
-        )
+            # Compute linear trend from historical engagement
+            brand_hist["t"] = range(len(brand_hist))
+            X = brand_hist["t"].values.reshape(-1, 1)
+            y = brand_hist["engagement_sum"].values
+            slope, intercept = np.polyfit(brand_hist["t"], y, 1)
 
-        st.plotly_chart(fig2, use_container_width=True)
+            # Predicted next-week engagement from microtopics
+            next_week_pred = float(filtered_latest["pred_next_engagement"].sum())
 
-        # --------------------------
-        # Trend summary (like your old version)
-        # --------------------------
-        last7_mean = hist_plot.set_index("date")["engagement"].tail(7).mean()
-        next7_mean = fc_df.set_index("date")["forecast"].head(7).mean()
+            # Build forecast horizon (6 weeks)
+            future_weeks = 6
+            t_future = np.arange(len(brand_hist), len(brand_hist) + future_weeks)
+            trend_future = intercept + slope * t_future
 
-        if last7_mean:
-            change = (next7_mean - last7_mean) / last7_mean * 100
-        else:
-            change = np.nan
+            # Offset future line so week +1 matches model prediction
+            offset = next_week_pred - trend_future[0]
+            trend_future += offset
 
-        trend = (
-            "rising 📈" if change > 5 else
-            "falling 📉" if change < -5 else
-            "flat ➖"
-        )
+            fc_df = pd.DataFrame({
+                "week_start": list(brand_hist["week_start"]) +
+                              [brand_hist["week_start"].max() + pd.Timedelta(weeks=i) for i in range(1, future_weeks+1)],
+                "engagement": list(brand_hist["engagement_sum"]) +
+                              list(trend_future),
+                "type": ["history"] * len(brand_hist) + ["forecast"] * future_weeks
+            })
 
-        st.markdown(
-            f"**Expected trend:** {trend} "
-            f"(next 7d vs last 7d: {change:+.1f}%)."
-        )
+            st.subheader("📈 6-Week Engagement Forecast (Regression-Based)")
+
+            fig_fc = px.line(
+                fc_df,
+                x="week_start",
+                y="engagement",
+                color="type",
+                markers=True,
+                labels={"week_start": "Week", "engagement": "Engagement"},
+                title=f"Brand-Level Forecast — {brand} ({item})",
+            )
+            st.plotly_chart(fig_fc, use_container_width=True)
 
 # ---------------------------------------------------------
 # TAB 4 — SURGE ANALYSIS
