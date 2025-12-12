@@ -279,10 +279,10 @@ with tab3:
 with tab4:
     st.title("Surge Analysis")
 
-    st.subheader("Surge Alerts (surge_prob ≥ 0.40)")
+    st.subheader("Surge Alerts (surge_prob ≥ 0.50)")
 
     alerts = filtered_latest[
-        filtered_latest["surge_prob"] >= 0.40
+        filtered_latest["surge_prob"] >= 0.50
     ].sort_values("surge_prob", ascending=False)
 
     if alerts.empty:
