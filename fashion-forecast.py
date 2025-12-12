@@ -158,7 +158,7 @@ with tab1:
         "avg_surge_prob": "Avg Surge Probability",
     })
 
-    st.dataframe(top_items, use_container_width=True
+    st.dataframe(top_items, use_container_width=True)
 
 # ---------------------------------------------------------
 # TAB 2 — HISTORICAL TRENDS (Optional Future Expansion)
