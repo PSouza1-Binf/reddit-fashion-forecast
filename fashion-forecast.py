@@ -221,7 +221,8 @@ with tab3:
     # -------------------------------
     # 6-WEEK BRAND FORECAST LINE CHART
     # -------------------------------
-    if brand != "(All Brands)" and not filtered_agg.empty:
+    if not filtered_agg.empty:
+
 
         brand_hist = (
             filtered_agg.groupby("week_start", as_index=False)
