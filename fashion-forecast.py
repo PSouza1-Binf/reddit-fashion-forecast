@@ -178,17 +178,17 @@ with tab2:
             sentiment=("sentiment_mean", "mean"),
         )
         # Always show line chart if week_start + engagement exist
-    if "engagement" in hist.columns:
-        fig = px.line(
-                hist,
-                x="week_start",
-                y="engagement",
-                title="Engagement Over Time",
-                labels={"week_start": "Week", "engagement": "Engagement"},
+if "engagement" in hist.columns:
+    fig = px.line(
+            hist,
+            x="week_start",
+            y="engagement",
+            title="Engagement Over Time",
+            labels={"week_start": "Week", "engagement": "Engagement"},
             )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Not enough data for historical charts.")
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Not enough data for historical charts.")
     
 
     
