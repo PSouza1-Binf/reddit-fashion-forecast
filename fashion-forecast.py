@@ -193,31 +193,6 @@ with tab3:
         filtered_latest.sort_values("pred_next_engagement", ascending=False)
         .head(15)
     )
-
-    fig = px.bar(
-        top_pred,
-        x="microtopic",
-        y="pred_next_engagement",
-        color="pred_next_engagement",
-        title="Next Week Engagement Forecast (Microtopic-Level)",
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-    st.subheader("Forecast Table")
-    st.dataframe(
-        top_pred[
-            [
-                "microtopic",
-                "brand",
-                "item",
-                "engagement_sum",
-                "sentiment_mean",
-                "surge_prob",
-                "pred_next_engagement",
-            ]
-        ]
-    )
-
     # -------------------------------
     # 6-WEEK BRAND FORECAST LINE CHART
     # -------------------------------
@@ -269,6 +244,31 @@ with tab3:
                 title=f"Brand-Level Forecast — {brand} ({item})",
             )
             st.plotly_chart(fig_fc, use_container_width=True)
+    fig = px.bar(
+        top_pred,
+        x="microtopic",
+        y="pred_next_engagement",
+        color="pred_next_engagement",
+        title="Next Week Engagement Forecast (Microtopic-Level)",
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.subheader("Forecast Table")
+    st.dataframe(
+        top_pred[
+            [
+                "microtopic",
+                "brand",
+                "item",
+                "engagement_sum",
+                "sentiment_mean",
+                "surge_prob",
+                "pred_next_engagement",
+            ]
+        ]
+    )
+
+    
 
 # ---------------------------------------------------------
 # TAB 4 — SURGE ANALYSIS
