@@ -135,7 +135,7 @@ with tab1:
     # ---- NEW: Top 10 items for next week ----
     st.subheader("Top 10 items for next week")
 
-    # Aggregate predictions at the item level within the current filters
+# Aggregate predictions at the item level within the current filters
     top_items = (
         filtered_latest
         .dropna(subset=["item"])
@@ -149,14 +149,16 @@ with tab1:
         .head(10)
     )
 
-    # Make the columns a bit friendlier for display
-    top_items = top_items.rename(columns={
-        "brand": "Brand",
-        "item": "Item",
-        "current_engagement": "Current Engagement (sum)",
-        "total_pred_next_engagement": "Next Week Engagement (pred, sum)",
-        "avg_surge_prob": "Avg Surge Probability",
-    })
+# Make the columns a bit friendlier for display
+    top_items = top_items.rename(
+        columns={
+            "brand": "Brand",
+            "item": "Item",
+            "current_engagement": "Current Engagement (sum)",
+            "total_pred_next_engagement": "Next Week Engagement (pred, sum)",
+            "avg_surge_prob": "Avg Surge Probability",
+        }
+    )
 
     st.dataframe(top_items, use_container_width=True)
 
