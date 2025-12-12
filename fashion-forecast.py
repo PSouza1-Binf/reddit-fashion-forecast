@@ -109,6 +109,27 @@ with tab1:
     This tool forecasts microtopic-level trends in Reddit fashion communities,
     including next-week engagement predictions and surge probability alerts.
     """)
+    st.subheader("Top Microtopics (Visual Overview)")
+
+    overview_chart_df = (
+        filtered_latest.sort_values("pred_next_engagement", ascending=False)
+        .head(15)
+    )
+
+    fig_overview = px.bar(
+        overview_chart_df,
+        x="microtopic",
+        y="pred_next_engagement",
+        color="surge_prob",
+        labels={
+            "microtopic": "Microtopic",
+            "pred_next_engagement": "Predicted Engagement",
+            "surge_prob": "Surge Probability"
+    },
+    title="Top Microtopics by Predicted Engagement",
+    )
+
+    st.plotly_chart(fig_overview, use_container_width=True)
 
     colA, colB = st.columns(2)
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
