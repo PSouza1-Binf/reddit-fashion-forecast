@@ -209,27 +209,93 @@ else:
 # ---------------------------------------------------------
 # TAB 3 — FORECAST
 # ---------------------------------------------------------
+# ---------------------------------------------------------
+# TAB 3 — FORECAST (history + 1–2 week future)
+# ---------------------------------------------------------
 with tab3:
     st.title("Forecast")
 
-    st.write("Predicted engagement for next week:")
+    # Must have time-series data available
+    if filtered_agg.empty:
+        st.info("Not enough time-series data to forecast.")
+    else:
+        # Build daily or weekly history (your model is weekly)
+        hist = (
+            filtered_agg.groupby("week_start", as_index=False)
+            .agg(engagement=("engagement_sum", "sum"))
+            .sort_values("week_start")
+        )
 
-    top_pred = filtered_latest.sort_values("pred_next_engagement", ascending=False).head(15)
+        # Convert to 'date' column (for consistency with your old chart)
+        hist = hist.rename(columns={"week_start": "date"})
 
+        # --------------------------
+        # Build simple next 2-week forecast
+        # --------------------------
+        last_date = hist["date"].max()
+        next_1 = last_date + pd.Timedelta(days=7)
+        next_2 = last_date + pd.Timedelta(days=14)
 
-    fig = px.bar(
-        top_pred,
-        x="microtopic",
-        y="pred_next_engagement",
-        color="pred_next_engagement",
-        title="Next Week Engagement Forecast",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+        # Forecast = SUM of microtopic predictions
+        next1_pred = float(filtered_latest["pred_next_engagement"].sum())
+        next2_pred = next1_pred * 1.05  # temporary placeholder
 
-    st.subheader("Forecast Table")
-    forecast_cols = ["brand", "item", "pred_next_engagement"]
-    st.dataframe(top_pred[forecast_cols])
+        # Build forecast DF
+        fc_df = pd.DataFrame({
+            "date": [next_1, next_2],
+            "forecast": [next1_pred, next2_pred],
+            # Optional CI placeholders
+            "ci_low": [next1_pred * 0.85, next2_pred * 0.85],
+            "ci_high": [next1_pred * 1.15, next2_pred * 1.15],
+        })
 
+        # --------------------------
+        # Combine history + forecast
+        # --------------------------
+        hist_plot = hist.copy()
+        hist_plot["type"] = "history"
+
+        fc_plot = fc_df.rename(columns={"forecast": "engagement"})[["date", "engagement"]]
+        fc_plot["type"] = "forecast"
+
+        combo = pd.concat([hist_plot, fc_plot], ignore_index=True)
+
+        # --------------------------
+        # Plot line chart
+        # --------------------------
+        fig2 = px.line(
+            combo,
+            x="date",
+            y="engagement",
+            color="type",
+            markers=True,
+            labels={"engagement": "Engagement", "date": "Date", "type": ""},
+            title="Engagement History + Forecast",
+        )
+
+        st.plotly_chart(fig2, use_container_width=True)
+
+        # --------------------------
+        # Trend summary (like your old version)
+        # --------------------------
+        last7_mean = hist_plot.set_index("date")["engagement"].tail(7).mean()
+        next7_mean = fc_df.set_index("date")["forecast"].head(7).mean()
+
+        if last7_mean:
+            change = (next7_mean - last7_mean) / last7_mean * 100
+        else:
+            change = np.nan
+
+        trend = (
+            "rising 📈" if change > 5 else
+            "falling 📉" if change < -5 else
+            "flat ➖"
+        )
+
+        st.markdown(
+            f"**Expected trend:** {trend} "
+            f"(next 7d vs last 7d: {change:+.1f}%)."
+        )
 
 # ---------------------------------------------------------
 # TAB 4 — SURGE ANALYSIS
