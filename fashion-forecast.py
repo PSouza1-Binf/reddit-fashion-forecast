@@ -40,7 +40,7 @@ st.sidebar.header("Filters")
 all_brands = sorted(ts_agg["brand"].dropna().unique())
 brand = st.sidebar.selectbox("Brand", ["(All Brands)"] + all_brands)
 
-# Items depend on brand selection
+# Items depend on brand
 if brand != "(All Brands)":
     items_list = sorted(ts_agg[ts_agg["brand"] == brand]["item"].dropna().unique())
 else:
@@ -49,7 +49,7 @@ else:
 item = st.sidebar.selectbox("Item", ["(All Items)"] + items_list)
 
 # ---------------------------------------------------------
-# UNIVERSAL FILTERING FUNCTION
+# UNIVERSAL FILTER FUNCTION
 # ---------------------------------------------------------
 def apply_filters(df):
     out = df.copy()
@@ -87,7 +87,7 @@ if not filtered_latest.empty:
         filtered_latest["surge_prob"] * np.log1p(filtered_latest["engagement_sum"])
     )
 
-# Stop app if no matches
+# Stop if empty
 if filtered_latest.empty:
     st.warning("No microtopics match this brand + item selection.")
     st.stop()
@@ -113,9 +113,8 @@ with tab1:
     colA, colB = st.columns(2)
     colA.metric("Microtopics (filtered)", f"{len(filtered_latest):,}")
     colB.metric("Surge Threshold", f"{surge_threshold:.3f}")
-    # ------------------------------
-    # Top 10 predicted items
-    # ------------------------------
+
+    # Top 10 Items
     st.subheader("Top 10 Items for Next Week")
 
     top_items = (
@@ -140,6 +139,7 @@ with tab1:
     })
 
     st.dataframe(top_items, use_container_width=True)
+
     overview_cols = [
         "microtopic", "brand", "item",
         "engagement_sum", "sentiment_mean",
@@ -152,8 +152,6 @@ with tab1:
         .head(20)
     )
 
-    
-
 # ---------------------------------------------------------
 # TAB 2 — HISTORICAL TRENDS
 # ---------------------------------------------------------
@@ -163,6 +161,9 @@ with tab2:
     if filtered_agg.empty:
         st.info("No time-series data available for this selection.")
     else:
+
+        filtered_agg["week_start"] = pd.to_datetime(filtered_agg["week_start"])
+
         hist = filtered_agg.groupby("week_start", as_index=False).agg(
             engagement=("engagement_sum", "sum"),
             posts=("posts", "sum"),
@@ -188,16 +189,15 @@ with tab3:
 
     st.write("Predicted engagement for next week:")
 
-    # Top predicted microtopics
     top_pred = (
         filtered_latest.sort_values("pred_next_engagement", ascending=False)
         .head(15)
     )
-    # -------------------------------
-    # 6-WEEK BRAND FORECAST LINE CHART
-    # -------------------------------
-    if not filtered_agg.empty:
 
+    # -------------------------------------------------
+    # 6-WEEK FORECAST (REGRESSION BASED)
+    # -------------------------------------------------
+    if not filtered_agg.empty:
 
         brand_hist = (
             filtered_agg.groupby("week_start", as_index=False)
@@ -207,33 +207,36 @@ with tab3:
 
         if not brand_hist.empty:
 
+            brand_hist["week_start"] = pd.to_datetime(brand_hist["week_start"])
+
             st.subheader("📈 6-Week Engagement Forecast (Regression-Based)")
 
-            # Trend fitting
             brand_hist["t"] = range(len(brand_hist))
             slope, intercept = np.polyfit(
                 brand_hist["t"], brand_hist["engagement_sum"], 1
             )
 
-            # Actual next-week prediction
             next_week_pred = float(filtered_latest["pred_next_engagement"].sum())
 
-            # Forecast 6 weeks
             horizon = 6
             t_future = np.arange(len(brand_hist), len(brand_hist) + horizon)
             trend_future = intercept + slope * t_future
 
-            # Align first forecast week to model prediction
             trend_future += (next_week_pred - trend_future[0])
 
+            future_dates = [
+                brand_hist["week_start"].max() + pd.Timedelta(weeks=i)
+                for i in range(1, horizon + 1)
+            ]
+
             fc_df = pd.DataFrame({
-                "week_start": list(brand_hist["week_start"]) +
-                              [brand_hist["week_start"].max() + pd.Timedelta(weeks=i)
-                               for i in range(1, horizon+1)],
-                "engagement": list(brand_hist["engagement_sum"]) +
-                              list(trend_future),
+                "week_start": list(brand_hist["week_start"]) + future_dates,
+                "engagement": list(brand_hist["engagement_sum"]) + list(trend_future),
                 "type": ["history"] * len(brand_hist) + ["forecast"] * horizon
             })
+
+            brand_label = brand if brand != "(All Brands)" else "All Brands"
+            item_label = item if item != "(All Items)" else "All Items"
 
             fig_fc = px.line(
                 fc_df,
@@ -241,9 +244,11 @@ with tab3:
                 y="engagement",
                 color="type",
                 markers=True,
-                title=f"Brand-Level Forecast — {brand} ({item})",
+                title=f"Brand-Level Forecast — {brand_label} ({item_label})",
             )
             st.plotly_chart(fig_fc, use_container_width=True)
+
+    # Microtopic bar chart
     fig = px.bar(
         top_pred,
         x="microtopic",
@@ -268,8 +273,6 @@ with tab3:
         ]
     )
 
-    
-
 # ---------------------------------------------------------
 # TAB 4 — SURGE ANALYSIS
 # ---------------------------------------------------------
@@ -277,6 +280,7 @@ with tab4:
     st.title("Surge Analysis")
 
     st.subheader("Surge Alerts (surge_prob ≥ 0.40)")
+
     alerts = filtered_latest[
         filtered_latest["surge_prob"] >= 0.40
     ].sort_values("surge_prob", ascending=False)
@@ -293,6 +297,7 @@ with tab4:
         st.dataframe(alerts[alert_cols])
 
     st.subheader("Top Surging Microtopics (Weighted)")
+
     top_surge = filtered_latest.sort_values("weighted_surge", ascending=False).head(20)
 
     fig2 = px.bar(
