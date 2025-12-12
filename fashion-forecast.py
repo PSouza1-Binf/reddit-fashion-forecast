@@ -165,11 +165,11 @@ with tab1:
 # ---------------------------------------------------------
 
 with tab2:
-st.subheader("📈 Historical Trends")
+ st.subheader("📈 Historical Trends")
 
-if filtered_agg.empty:
+ if filtered_agg.empty:
         st.info("No time-series data available for this selection.")
-else:
+ else:
         hist = filtered_agg.groupby("week_start", as_index=False).agg(
             engagement=("engagement_sum", "sum"),
             posts=("posts", "sum"),
