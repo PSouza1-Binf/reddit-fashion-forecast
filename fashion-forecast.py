@@ -38,10 +38,10 @@ ts_feat = art.get("ts_feat")
 
 st.sidebar.markdown(
     """
-    <h1 style='text-align:center; font-size:22px; margin-bottom:0;'>
+    <h1 style='text-align:center; font-size:18px; margin-bottom:0;'>
          Reddit Fashion Forecast
     </h1>
-    <p style='text-align:center; font-size:14px; color:gray; margin-top:0;'>
+    <p style='text-align:center; font-size:12px; color:gray; margin-top:0;'>
         Weekly Trend Insights & Engagement Predictions
     </p>
     <hr>
